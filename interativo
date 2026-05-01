@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Experiencia 3D + AR | EIS en membrana PLA dopada</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(16, 24, 44, 0.82);
+      --panel-2: rgba(20, 30, 56, 0.92);
+      --text: #eaf0ff;
+      --muted: #b7c3e3;
+      --accent: #7dd3fc;
+      --accent-2: #a78bfa;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --line: rgba(255,255,255,0.12);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top, #172044 0%, var(--bg) 58%, #050816 100%);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow: hidden;
+    }
+    a { color: inherit; }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      width: 100vw;
+    }
+    header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(180deg, rgba(5,8,22,.92), rgba(5,8,22,.65));
+      border-bottom: 1px solid var(--line);
+      z-index: 5;
+    }
+    .title-wrap { display: flex; flex-direction: column; gap: 2px; }
+    h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+    .subtitle { color: var(--muted); font-size: 12px; }
+    .mode-switch {
+      display: flex;
+      gap: 8px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+    }
+    .mode-switch button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: var(--text);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .mode-switch button.active {
+      background: linear-gradient(135deg, rgba(125,211,252,.24), rgba(167,139,250,.24));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
+    }
+    main {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 14px;
+      min-height: 0;
+      padding: 14px;
+    }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.28);
+      backdrop-filter: blur(16px);
+    }
+    .card h2, .card h3 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+    }
+    .card .content { padding: 16px; }
+    .step-list {
+      display: grid;
+      gap: 10px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.03);
+      transition: 0.2s ease;
+    }
+    .step.active {
+      background: linear-gradient(135deg, rgba(125,211,252,.14), rgba(167,139,250,.12));
+      border-color: rgba(125,211,252,.35);
+    }
+    .step small { color: var(--muted); display: block; margin-top: 4px; line-height: 1.35; }
+    .meta { color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 6px 6px 0 0;
+      background: rgba(255,255,255,.04);
+    }
+    .viewer {
+      position: relative;
+      min-height: 0;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(11,16,32,.7), rgba(8,12,24,.92));
+      box-shadow: 0 18px 50px rgba(0,0,0,.35);
+    }
+    #threeContainer, #arContainer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #arContainer { display: none; }
+    .overlay {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      pointer-events: none;
+      z-index: 3;
+    }
+    .overlay .panel {
+      pointer-events: auto;
+      background: rgba(8,12,24,.72);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+      backdrop-filter: blur(12px);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      align-self: end;
+    }
+    .control-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .control-row button, .control-row a.btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .control-row button.primary {
+      background: linear-gradient(135deg, rgba(125,211,252,.22), rgba(167,139,250,.22));
+      border-color: rgba(125,211,252,.28);
+    }
+    input[type="range"] { width: 100%; }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 18px 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .hidden { display: none !important; }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      margin-top: 8px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.04);
+    }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .sidebar { order: 2; }
+      .viewer { min-height: 52vh; }
+      header { flex-direction: column; align-items: flex-start; }
+      .footer { flex-direction: column; gap: 8px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-wrap">
+        <h1>Caracterización EIS en membrana polimérica PLA dopada con ácido hipofosforoso</h1>
+        <div class="subtitle">Experiencia interactiva 3D + AR para póster científico</div>
+      </div>
+      <div class="mode-switch" role="tablist" aria-label="Modo de visualización">
+        <button id="btn3d" class="active" type="button">Modo 3D</button>
+        <button id="btnAR" type="button">Modo AR</button>
+      </div>
+    </header>
+
+    <main>
+      <aside class="sidebar">
+        <section class="card">
+          <div class="content">
+            <h2>Secuencia científica</h2>
+            <div class="meta">
+              La experiencia narra el flujo mínimo necesario para explicar el estudio: preparación de la membrana, dopaje, acondicionamiento y medición por EIS.
+            </div>
+            <div class="pill">Técnica única: EIS</div>
+          </div>
+        </section>
+
+        <section class="card" style="flex:1; min-height:0;">
+          <div class="content" style="display:flex; flex-direction:column; gap:12px; min-height:0;">
+            <h2>Escenas</h2>
+            <div id="stepList" class="step-list"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="content">
+            <h3 id="sceneTitle">Membrana base de PLA</h3>
+            <div id="sceneDesc" class="meta"></div>
+            <div class="control-row">
+              <button id="prevBtn" type="button">Anterior</button>
+              <button id="nextBtn" type="button" class="primary">Siguiente</button>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="viewer card">
+        <div id="threeContainer"></div>
+
+        <div id="arContainer">
+          <a-scene
+            embedded
+            vr-mode-ui="enabled: false"
+            renderer="alpha: true; antialias: true; precision: medium;"
+            arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;"
+          >
+            <a-marker preset="hiro">
+              <a-entity id="arRoot" position="0 0 0">
+                <a-cylinder position="0 0.25 0" radius="0.55" height="0.06" color="#7dd3fc" opacity="0.92"></a-cylinder>
+                <a-cylinder position="0 0.29 0" radius="0.58" height="0.02" color="#c4b5fd" opacity="0.7"></a-cylinder>
+
+                <a-sphere position="-0.12 0.38 0.06" radius="0.045" color="#34d399"></a-sphere>
+                <a-sphere position="0.14 0.38 -0.04" radius="0.045" color="#34d399"></a-sphere>
+                <a-sphere position="0.0 0.42 0.12" radius="0.035" color="#34d399"></a-sphere>
+
+                <a-plane position="0 0.55 0" rotation="-90 0 0" width="1.15" height="0.18" color="#0b1020" opacity="0.7"></a-plane>
+                <a-text value="EIS: respuesta electroquímica" position="-0.52 0.56 0.01" color="#eaf0ff" width="1.7"></a-text>
+              </a-entity>
+            </a-marker>
+            <a-entity camera></a-entity>
+          </a-scene>
+        </div>
+
+        <div class="overlay">
+          <div class="panel">
+            <div id="overlayTitle" style="font-weight:800; margin-bottom:4px;">Membrana base de PLA</div>
+            <div id="overlayText" class="note"></div>
+            <div class="control-row">
+              <button id="toggleSpin" type="button" class="primary">Pausar giro</button>
+              <a class="btn" href="#" id="downloadHint">Abrir desde QR</a>
+            </div>
+          </div>
+          <div class="legend">
+            <div class="tag">PLA</div>
+            <div class="tag">Ácido hipofosforoso</div>
+            <div class="tag">EIS</div>
+            <div class="tag">Nyquist / Bode</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">
+      <div>Escanea el QR para abrir esta página en el celular. En AR, apunta al marcador Hiro incluido en pantalla o en una tarjeta impresa.</div>
+      <div>Base editable para póster, demo y congreso.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.164.1/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js';
+
+    const sceneSteps = [
+      {
+        title: 'Membrana base de PLA',
+        short: 'Se presenta la membrana polimérica antes del dopaje, como sustrato de referencia para el estudio.',
+        long: 'La experiencia inicia mostrando la membrana de ácido poliláctico (PLA) como matriz polimérica base. En esta etapa se interpreta la muestra sin modificación química, útil como control estructural y electroquímico antes de incorporar el agente dopante.',
+        tone: 'base'
+      },
+      {
+        title: 'Incorporación del ácido hipofosforoso',
+        short: 'El dopante se incorpora a la matriz para modificar la respuesta del sistema.',
+        long: 'La segunda escena representa la incorporación del ácido hipofosforoso en la membrana. La idea visual es sugerir interacción entre el aditivo y la matriz polimérica, lo que puede alterar la microestructura y la respuesta frente a estímulos eléctricos.',
+        tone: 'dopant'
+      },
+      {
+        title: 'Membrana dopada y estabilizada',
+        short: 'Se observa la membrana tras el dopaje, lista para la medición electroquímica.',
+        long: 'Aquí se muestra la membrana ya dopada como sistema de trabajo. Esta escena comunica que el material fue preparado y acondicionado para su evaluación por espectroscopía de impedancia electroquímica (EIS).',
+        tone: 'stabilized'
+      },
+      {
+        title: 'Montaje de celda electroquímica',
+        short: 'La muestra se ubica en el montaje de medición para aplicar la técnica EIS.',
+        long: 'La cuarta escena ilustra el principio de la medición: la membrana se integra a la celda electroquímica, donde se aplica una perturbación de pequeña amplitud y se registra la respuesta del sistema en función de la frecuencia.',
+        tone: 'cell'
+      },
+      {
+        title: 'Lectura EIS: Nyquist y Bode',
+        short: 'La señal se traduce en gráficas de impedancia para analizar la respuesta del material.',
+        long: 'La escena final traduce el ensayo en resultados. EIS permite observar la respuesta compleja del sistema mediante diagramas de Nyquist y Bode, útiles para interpretar transporte de carga, resistencia y comportamiento interfacial.',
+        tone: 'results'
+      }
+    ];
+
+    const stepList = document.getElementById('stepList');
+    const sceneTitle = document.getElementById('sceneTitle');
+    const sceneDesc = document.getElementById('sceneDesc');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+    const btn3d = document.getElementById('btn3d');
+    const btnAR = document.getElementById('btnAR');
+    const threeContainer = document.getElementById('threeContainer');
+    const arContainer = document.getElementById('arContainer');
+    const toggleSpin = document.getElementById('toggleSpin');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const downloadHint = document.getElementById('downloadHint');
+
+    let currentStep = 0;
+    let spinning = true;
+
+    sceneSteps.forEach((step, idx) => {
+      const div = document.createElement('div');
+      div.className = 'step' + (idx === 0 ? ' active' : '');
+      div.innerHTML = `<strong>${idx + 1}. ${step.title}</strong><small>${step.short}</small>`;
+      div.addEventListener('click', () => setStep(idx));
+      stepList.appendChild(div);
+    });
+
+    function setStep(idx) {
+      currentStep = (idx + sceneSteps.length) % sceneSteps.length;
+      document.querySelectorAll('.step').forEach((el, i) => el.classList.toggle('active', i === currentStep));
+      const s = sceneSteps[currentStep];
+      sceneTitle.textContent = s.title;
+      sceneDesc.textContent = s.long;
+      overlayTitle.textContent = s.title;
+      overlayText.textContent = s.short;
+      updateSceneVisuals();
+    }
+
+    prevBtn.addEventListener('click', () => setStep(currentStep - 1));
+    nextBtn.addEventListener('click', () => setStep(currentStep + 1));
+
+    // 3D mode with Three.js
+    const width = () => threeContainer.clientWidth;
+    const height = () => threeContainer.clientHeight;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width(), height());
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    threeContainer.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0b1020, 6, 18);
+
+    const camera = new THREE.PerspectiveCamera(45, width() / height(), 0.1, 100);
+    camera.position.set(0, 1.9, 4.9);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.2;
+    controls.target.set(0, 0.5, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.45));
+    const dir = new THREE.DirectionalLight(0xffffff, 2.4);
+    dir.position.set(4, 8, 5);
+    scene.add(dir);
+
+    const grid = new THREE.GridHelper(20, 20, 0x2f446b, 0x1b2742);
+    grid.position.y = -1.05;
+    scene.add(grid);
+
+    const membraneGroup = new THREE.Group();
+    scene.add(membraneGroup);
+
+    const membraneGeom = new THREE.CylinderGeometry(1.2, 1.2, 0.12, 64, 1, false);
+    const membraneMat = new THREE.MeshPhysicalMaterial({
+      color: 0x7dd3fc,
+      roughness: 0.55,
+      metalness: 0.02,
+      transparent: true,
+      opacity: 0.95,
+      transmission: 0.18,
+      thickness: 0.6,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.25
+    });
+    const membrane = new THREE.Mesh(membraneGeom, membraneMat);
+    membraneGroup.add(membrane);
+
+    const membraneEdge = new THREE.Mesh(
+      new THREE.TorusGeometry(1.2, 0.05, 18, 80),
+      new THREE.MeshStandardMaterial({ color: 0xc4b5fd, emissive: 0x241050, emissiveIntensity: 0.25 })
+    );
+    membraneEdge.rotation.x = Math.PI / 2;
+    membraneGroup.add(membraneEdge);
+
+    const dopantPoints = [];
+    const dopantGroup = new THREE.Group();
+    scene.add(dopantGroup);
+    const dopantGeom = new THREE.SphereGeometry(0.05, 20, 20);
+    const dopantMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x113322, emissiveIntensity: 0.7 });
+    for (let i = 0; i < 18; i++) {
+      const m = new THREE.Mesh(dopantGeom, dopantMat);
+      m.position.set((Math.random() - 0.5) * 4, Math.random() * 1.1 + 0.2, (Math.random() - 0.5) * 4);
+      m.userData.baseY = m.position.y;
+      m.userData.angle = Math.random() * Math.PI * 2;
+      dopantPoints.push(m);
+      dopantGroup.add(m);
+    }
+
+    const cellGroup = new THREE.Group();
+    scene.add(cellGroup);
+    const beaker = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.7, 1.85, 2.2, 48, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.16, roughness: 0.1, metalness: 0.0 })
+    );
+    cellGroup.add(beaker);
+    const electrode1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.8, 0.45), new THREE.MeshStandardMaterial({ color: 0xe2e8f0 }));
+    electrode1.position.set(-0.6, 0.0, 0);
+    cellGroup.add(electrode1);
+    const electrode2 = electrode1.clone();
+    electrode2.position.x = 0.6;
+    cellGroup.add(electrode2);
+    const electrolyte = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.55, 1.55, 1.05, 48),
+      new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.18, roughness: 0.2 })
+    );
+    electrolyte.position.y = -0.28;
+    cellGroup.add(electrolyte);
+    const membraneInCell = membrane.clone();
+    membraneInCell.scale.set(0.9, 0.9, 0.9);
+    membraneInCell.rotation.x = Math.PI / 2;
+    membraneInCell.position.y = 0.12;
+    cellGroup.add(membraneInCell);
+
+    const resultsGroup = new THREE.Group();
+    scene.add(resultsGroup);
+    const nyquist = new THREE.Mesh(
+      new THREE.TorusGeometry(0.95, 0.03, 18, 80, Math.PI * 1.25),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x3a2500, emissiveIntensity: 0.8 })
+    );
+    nyquist.rotation.x = Math.PI / 2;
+    nyquist.position.set(-0.7, 0.35, 0.0);
+    resultsGroup.add(nyquist);
+    const bodeLineGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0.55, -0.4, 0),
+      new THREE.Vector3(0.75, -0.05, 0),
+      new THREE.Vector3(1.0, 0.12, 0),
+      new THREE.Vector3(1.28, 0.28, 0),
+      new THREE.Vector3(1.65, 0.48, 0)
+    ]);
+    const bodeLine = new THREE.Line(bodeLineGeom, new THREE.LineBasicMaterial({ color: 0xa78bfa }));
+    resultsGroup.add(bodeLine);
+    const resultPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 1.8), new THREE.MeshStandardMaterial({ color: 0x0f172a, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+    resultPlane.position.set(0.55, 0.0, -0.05);
+    resultsGroup.add(resultPlane);
+
+    const labelSprite = makeTextSprite('Membrana PLA', '#7dd3fc');
+    labelSprite.position.set(0, 1.35, 0);
+    membraneGroup.add(labelSprite);
+
+    const dopantLabel = makeTextSprite('Ácido hipofosforoso', '#34d399');
+    dopantLabel.position.set(0, 1.65, 0);
+    dopantGroup.add(dopantLabel);
+
+    const cellLabel = makeTextSprite('Montaje EIS', '#e2e8f0');
+    cellLabel.position.set(0, 1.65, 0);
+    cellGroup.add(cellLabel);
+
+    const resultLabel = makeTextSprite('Nyquist / Bode', '#fbbf24');
+    resultLabel.position.set(0.4, 1.25, 0);
+    resultsGroup.add(resultLabel);
+
+    function makeTextSprite(text, color = '#ffffff') {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(8,12,24,0.72)';
+      roundRect(ctx, 10, 14, 492, 100, 24, true, false);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, 10, 14, 492, 100, 24, false, true);
+      ctx.fillStyle = color;
+      ctx.font = 'bold 34px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 64);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(2.8, 0.7, 1);
+      return sprite;
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+      if (w < 2 * r) r = w / 2;
+      if (h < 2 * r) r = h / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function updateSceneVisuals() {
+      const s = sceneSteps[currentStep];
+      membraneGroup.visible = s.tone === 'base';
+      dopantGroup.visible = s.tone === 'dopant';
+      cellGroup.visible = s.tone === 'cell';
+      resultsGroup.visible = s.tone === 'results';
+      membrane.visible = s.tone === 'stabilized';
+      membraneEdge.visible = s.tone === 'stabilized';
+      if (s.tone === 'stabilized') {
+        membraneGroup.visible = true;
+        dopantGroup.visible = true;
+      }
+      if (s.tone === 'base' || s.tone === 'stabilized') {
+        controls.target.set(0, 0.5, 0);
+        camera.position.set(0, 1.9, 4.9);
+      }
+      if (s.tone === 'cell') {
+        controls.target.set(0, 0.4, 0);
+        camera.position.set(0.45, 1.9, 5.2);
+      }
+      if (s.tone === 'results') {
+        controls.target.set(0, 0.4, 0);
+        camera.position.set(0.5, 1.6, 4.6);
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.autoRotate = spinning && btn3d.classList.contains('active');
+      controls.update();
+
+      const t = performance.now() * 0.001;
+
+      dopantPoints.forEach((m, i) => {
+        m.rotation.x = t * 1.2 + i;
+        m.rotation.y = t * 0.8 + i * 0.3;
+        if (currentStep === 1) {
+          const ang = m.userData.angle + t * 0.6;
+          m.position.x = Math.cos(ang + i) * (1.1 + (i % 3) * 0.12);
+          m.position.z = Math.sin(ang + i * 0.7) * (1.0 + (i % 2) * 0.1);
+          m.position.y = 0.35 + Math.sin(ang * 2 + i) * 0.3;
+        } else if (currentStep === 2) {
+          const ang = m.userData.angle + t * 0.2;
+          m.position.x = Math.cos(ang + i) * 0.55;
+          m.position.z = Math.sin(ang + i * 0.5) * 0.55;
+          m.position.y = 0.26 + Math.sin(t + i) * 0.05;
+        } else {
+          m.position.y = m.userData.baseY + Math.sin(t * 1.6 + i) * 0.03;
+        }
+      });
+
+      if (currentStep === 0) {
+        membrane.rotation.x = Math.PI / 2 + Math.sin(t * 0.3) * 0.02;
+        membrane.rotation.z = Math.cos(t * 0.25) * 0.02;
+      } else if (currentStep === 2) {
+        membrane.rotation.x = Math.PI / 2;
+        membrane.rotation.z = 0;
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+    setStep(0);
+
+    function resize() {
+      const w = width();
+      const h = height();
+      if (w === 0 || h === 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    toggleSpin.addEventListener('click', () => {
+      spinning = !spinning;
+      toggleSpin.textContent = spinning ? 'Pausar giro' : 'Reanudar giro';
+    });
+
+    function setMode(mode) {
+      const is3d = mode === '3d';
+      btn3d.classList.toggle('active', is3d);
+      btnAR.classList.toggle('active', !is3d);
+      threeContainer.style.display = is3d ? 'block' : 'none';
+      arContainer.style.display = is3d ? 'none' : 'block';
+      downloadHint.textContent = is3d ? 'Compartir enlace' : 'Abrir cámara AR';
+      overlayText.textContent = sceneSteps[currentStep].short;
+    }
+
+    btn3d.addEventListener('click', () => setMode('3d'));
+    btnAR.addEventListener('click', () => setMode('ar'));
+
+    // Dummy link for the QR target: replace with your hosted URL later.
+    downloadHint.addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('Reemplaza este enlace por la URL pública de tu página. Luego convierte esa URL en QR para el póster.');
+    });
+
+    // Helpful info if AR libraries fail to load or marker not available.
+    const arNotice = document.createElement('div');
+    arNotice.style.position = 'absolute';
+    arNotice.style.top = '16px';
+    arNotice.style.left = '16px';
+    arNotice.style.padding = '10px 12px';
+    arNotice.style.borderRadius = '12px';
+    arNotice.style.background = 'rgba(8,12,24,.72)';
+    arNotice.style.border = '1px solid rgba(255,255,255,.12)';
+    arNotice.style.color = '#eaf0ff';
+    arNotice.style.fontSize = '12px';
+    arNotice.style.lineHeight = '1.45';
+    arNotice.innerHTML = 'Modo AR: necesita servir este archivo desde <b>https</b> o localhost para activar la cámara.';
+    arContainer.appendChild(arNotice);
+
+    // Initial text.
+    updateSceneVisuals();
+  </script>
+
+  <!-- A-Frame + AR.js for marker-based AR -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+</body>
+</html>
